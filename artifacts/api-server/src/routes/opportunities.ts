@@ -12,6 +12,23 @@ import {
 
 const router: IRouter = Router();
 
+async function getOpportunityWithRelations(id: number) {
+  const [row] = await db
+    .select({ opportunity: opportunities, trade: trades, employer: employersTable })
+    .from(opportunities)
+    .leftJoin(trades, eq(opportunities.tradeId, trades.id))
+    .leftJoin(employersTable, eq(opportunities.employerId, employersTable.id))
+    .where(eq(opportunities.id, id));
+
+  if (!row) return null;
+
+  return {
+    ...row.opportunity,
+    trade: row.trade ?? undefined,
+    employer: row.employer ?? undefined,
+  };
+}
+
 router.get("/opportunities", async (req, res): Promise<void> => {
   const query = TradeListOpportunitiesQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -34,26 +51,25 @@ router.get("/opportunities", async (req, res): Promise<void> => {
   }
 
   const rows = await (conditions.length
-    ? db.select().from(opportunities).where(and(...conditions))
-    : db.select().from(opportunities));
+    ? db
+        .select({ opportunity: opportunities, trade: trades, employer: employersTable })
+        .from(opportunities)
+        .leftJoin(trades, eq(opportunities.tradeId, trades.id))
+        .leftJoin(employersTable, eq(opportunities.employerId, employersTable.id))
+        .where(and(...conditions))
+    : db
+        .select({ opportunity: opportunities, trade: trades, employer: employersTable })
+        .from(opportunities)
+        .leftJoin(trades, eq(opportunities.tradeId, trades.id))
+        .leftJoin(employersTable, eq(opportunities.employerId, employersTable.id)));
 
-  const enriched = await Promise.all(
-    rows.map(async (opp) => {
-      const [trade] = opp.tradeId
-        ? await db.select().from(trades).where(eq(trades.id, opp.tradeId))
-        : [null];
-      const [employer] = opp.employerId
-        ? await db.select().from(employersTable).where(eq(employersTable.id, opp.employerId))
-        : [null];
-      return {
-        ...opp,
-        trade: trade ?? undefined,
-        employer: employer ?? undefined,
-      };
-    }),
+  res.json(
+    rows.map((row) => ({
+      ...row.opportunity,
+      trade: row.trade ?? undefined,
+      employer: row.employer ?? undefined,
+    })),
   );
-
-  res.json(enriched);
 });
 
 router.post("/opportunities", async (req, res): Promise<void> => {
@@ -79,7 +95,8 @@ router.post("/opportunities", async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(created);
+  const enriched = await getOpportunityWithRelations(created.id);
+  res.status(201).json(enriched);
 });
 
 router.get("/opportunities/:id", async (req, res): Promise<void> => {
@@ -89,17 +106,14 @@ router.get("/opportunities/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [opp] = await db
-    .select()
-    .from(opportunities)
-    .where(eq(opportunities.id, params.data.id));
+  const row = await getOpportunityWithRelations(params.data.id);
 
-  if (!opp) {
+  if (!row) {
     res.status(404).json({ error: "Opportunity not found" });
     return;
   }
 
-  res.json(opp);
+  res.json(row);
 });
 
 router.patch("/opportunities/:id", async (req, res): Promise<void> => {
@@ -116,8 +130,8 @@ router.patch("/opportunities/:id", async (req, res): Promise<void> => {
   }
 
   const updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (body.data.employerId !== undefined && body.data.employerId !== null) updates.employerId = body.data.employerId;
-  if (body.data.tradeId !== undefined && body.data.tradeId !== null) updates.tradeId = body.data.tradeId;
+  if (body.data.employerId !== undefined) updates.employerId = body.data.employerId;
+  if (body.data.tradeId !== undefined) updates.tradeId = body.data.tradeId;
   if (body.data.title !== undefined) updates.title = body.data.title;
   if (body.data.companyName !== undefined) updates.companyName = body.data.companyName;
   if (body.data.location !== undefined) updates.location = body.data.location;
@@ -125,7 +139,7 @@ router.patch("/opportunities/:id", async (req, res): Promise<void> => {
   if (body.data.description !== undefined) updates.description = body.data.description;
   if (body.data.requirements !== undefined) updates.requirements = body.data.requirements;
   if (body.data.payRange !== undefined) updates.payRange = body.data.payRange;
-  if (body.data.isActive !== undefined && body.data.isActive !== null) updates.isActive = body.data.isActive;
+  if (body.data.isActive !== undefined) updates.isActive = body.data.isActive;
 
   const [updated] = await db
     .update(opportunities)
@@ -138,7 +152,8 @@ router.patch("/opportunities/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(updated);
+  const enriched = await getOpportunityWithRelations(updated.id);
+  res.json(enriched);
 });
 
 router.delete("/opportunities/:id", async (req, res): Promise<void> => {

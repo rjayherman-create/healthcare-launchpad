@@ -61,6 +61,7 @@ export const TradeListTradeInterestsResponse = zod.array(zod.any());
 
 export const TradeAddTradeInterestBody = zod.object({
   clerkUserId: zod.string(),
+  email: zod.string().email(),
   tradeId: zod.number(),
   interestLevel: zod.number().nullish(),
   wantsPaidWork: zod.boolean().nullish(),
@@ -84,6 +85,7 @@ export const TradeListApplicationsResponse = zod.array(zod.any());
 
 export const TradeCreateApplicationBody = zod.object({
   clerkUserId: zod.string(),
+  email: zod.string().email(),
   opportunityId: zod.number(),
   status: zod.string().nullish(),
   messageToEmployer: zod.string().nullish(),

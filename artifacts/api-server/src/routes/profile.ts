@@ -202,13 +202,13 @@ router.post("/profile/trade-interests", async (req, res): Promise<void> => {
     return;
   }
 
-  const { clerkUserId, tradeId, interestLevel, wantsPaidWork, wantsTraining } = parsed.data;
+  const { clerkUserId, email, tradeId, interestLevel, wantsPaidWork, wantsTraining } = parsed.data;
 
   let [user] = await db.select().from(users).where(eq(users.clerkUserId, clerkUserId));
   if (!user) {
     [user] = await db
       .insert(users)
-      .values({ clerkUserId, email: `${clerkUserId}@tradelaunch.app`, role: "student" })
+      .values({ clerkUserId, email, role: "student" })
       .returning();
   }
 

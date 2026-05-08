@@ -15,21 +15,30 @@ import {
 const router: IRouter = Router();
 
 async function getApplicationWithOpportunity(appId: number) {
-  const [app] = await db.select().from(opportunityApplications).where(eq(opportunityApplications.id, appId));
-  if (!app) return null;
+  const [row] = await db
+    .select({
+      application: opportunityApplications,
+      opportunity: opportunities,
+      employer: employersTable,
+      trade: trades,
+    })
+    .from(opportunityApplications)
+    .leftJoin(opportunities, eq(opportunityApplications.opportunityId, opportunities.id))
+    .leftJoin(employersTable, eq(opportunities.employerId, employersTable.id))
+    .leftJoin(trades, eq(opportunities.tradeId, trades.id))
+    .where(eq(opportunityApplications.id, appId));
 
-  const [opp] = await db.select().from(opportunities).where(eq(opportunities.id, app.opportunityId));
-
-  const [employer] = opp?.employerId
-    ? await db.select().from(employersTable).where(eq(employersTable.id, opp.employerId))
-    : [null];
-  const [trade] = opp?.tradeId
-    ? await db.select().from(trades).where(eq(trades.id, opp.tradeId))
-    : [null];
+  if (!row) return null;
 
   return {
-    ...app,
-    opportunity: { ...opp, employer: employer ?? undefined, trade: trade ?? undefined },
+    ...row.application,
+    opportunity: row.opportunity
+      ? {
+          ...row.opportunity,
+          employer: row.employer ?? undefined,
+          trade: row.trade ?? undefined,
+        }
+      : null,
   };
 }
 
@@ -51,27 +60,30 @@ router.get("/applications", async (req, res): Promise<void> => {
   const conditions = [eq(opportunityApplications.studentUserId, user.id)];
   if (status) conditions.push(eq(opportunityApplications.status, status));
 
-  const apps = await db
-    .select()
+  const rows = await db
+    .select({
+      application: opportunityApplications,
+      opportunity: opportunities,
+      employer: employersTable,
+      trade: trades,
+    })
     .from(opportunityApplications)
+    .leftJoin(opportunities, eq(opportunityApplications.opportunityId, opportunities.id))
+    .leftJoin(employersTable, eq(opportunities.employerId, employersTable.id))
+    .leftJoin(trades, eq(opportunities.tradeId, trades.id))
     .where(and(...conditions))
     .orderBy(opportunityApplications.updatedAt);
 
-  const results = await Promise.all(
-    apps.map(async (app) => {
-      const [opp] = await db.select().from(opportunities).where(eq(opportunities.id, app.opportunityId));
-      const [employer] = opp?.employerId
-        ? await db.select().from(employersTable).where(eq(employersTable.id, opp.employerId))
-        : [null];
-      const [trade] = opp?.tradeId
-        ? await db.select().from(trades).where(eq(trades.id, opp.tradeId))
-        : [null];
-      return {
-        ...app,
-        opportunity: { ...opp, employer: employer ?? undefined, trade: trade ?? undefined },
-      };
-    }),
-  );
+  const results = rows.map((row) => ({
+    ...row.application,
+    opportunity: row.opportunity
+      ? {
+          ...row.opportunity,
+          employer: row.employer ?? undefined,
+          trade: row.trade ?? undefined,
+        }
+      : null,
+  }));
 
   res.json(TradeListApplicationsResponse.parse(results));
 });
@@ -83,13 +95,13 @@ router.post("/applications", async (req, res): Promise<void> => {
     return;
   }
 
-  const { clerkUserId, opportunityId, status, messageToEmployer, studentNotes } = parsed.data;
+  const { clerkUserId, email, opportunityId, status, messageToEmployer, studentNotes } = parsed.data;
 
   let [user] = await db.select().from(users).where(eq(users.clerkUserId, clerkUserId));
   if (!user) {
     [user] = await db
       .insert(users)
-      .values({ clerkUserId, email: `${clerkUserId}@tradelaunch.app`, role: "student" })
+      .values({ clerkUserId, email, role: "student" })
       .returning();
   }
 
