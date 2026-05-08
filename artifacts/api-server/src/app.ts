@@ -29,6 +29,19 @@ app.use(
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Healthcare Launchpad API",
+    status: "ok",
+    health: "/api/healthz",
+  });
+});
+
+app.get("/healthz", (_req, res) => {
+  res.redirect(307, "/api/healthz");
+});
+
 app.use("/api", router);
 
 export default app;
