@@ -5,16 +5,22 @@ import { UpsertMyEmployerBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-router.get("/employers/me", async (req, res) => {
+router.get("/employers/me", async (req, res): Promise<void> => {
   const clerkUserId = req.headers["x-clerk-user-id"] as string | undefined;
-  if (!clerkUserId) return res.status(401).json({ error: "Unauthorized" });
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
 
   try {
     const [employer] = await db
       .select()
       .from(employersTable)
       .where(eq(employersTable.clerkUserId, clerkUserId));
-    if (!employer) return res.status(404).json({ error: "Employer not found" });
+    if (!employer) {
+      res.status(404).json({ error: "Employer not found" });
+      return;
+    }
     res.json(formatEmployer(employer));
   } catch (err) {
     req.log.error({ err }, "Failed to get employer");
@@ -22,9 +28,12 @@ router.get("/employers/me", async (req, res) => {
   }
 });
 
-router.put("/employers/me", async (req, res) => {
+router.put("/employers/me", async (req, res): Promise<void> => {
   const clerkUserId = req.headers["x-clerk-user-id"] as string | undefined;
-  if (!clerkUserId) return res.status(401).json({ error: "Unauthorized" });
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
 
   try {
     const body = UpsertMyEmployerBody.parse(req.body);
