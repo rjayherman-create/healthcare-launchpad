@@ -24,35 +24,61 @@ const navItems = [
   { label: "Candidates", href: "/candidates", icon: Users, public: false },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+const homepageNavItems = [
+  { label: "Opportunities", href: "/jobs", icon: Briefcase, public: true },
+  { label: "For Students", href: "/sign-up", icon: User, public: true },
+  { label: "For Employers", href: "/employers", icon: Building2, public: true },
+  { label: "Resources", href: "/jobs", icon: FileText, public: true },
+  { label: "About", href: "/", icon: HeartPulse, public: true },
+];
+
+export function Layout({ children, headerTone = "light" }: { children: React.ReactNode; headerTone?: "light" | "dark" }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const isDarkHeader = headerTone === "dark";
+  const publicNavItems = isDarkHeader ? homepageNavItems : navItems.filter((n) => n.public);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 bg-white border-b border-border shadow-sm">
+      <header
+        className={cn(
+          "sticky top-0 z-50 border-b",
+          isDarkHeader
+            ? "bg-[#06131d] border-white/10 text-white"
+            : "bg-white border-border text-slate-900 shadow-sm",
+        )}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-[72px]">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center group-hover:bg-teal-700 transition-colors">
-                <HeartPulse className="w-5 h-5 text-white" />
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+                  isDarkHeader
+                    ? "bg-cyan-300/90 text-slate-950 group-hover:bg-cyan-200"
+                    : "bg-teal-600 text-white group-hover:bg-teal-700",
+                )}
+              >
+                <HeartPulse className="w-5 h-5" />
               </div>
-              <span className="font-bold text-slate-900 text-lg tracking-tight">
-                Healthcare <span className="text-teal-600">Launchpad</span>
+              <span className={cn("font-bold text-lg tracking-tight leading-tight", isDarkHeader ? "text-white" : "text-slate-900")}>
+                Healthcare <span className={isDarkHeader ? "block text-cyan-300" : "text-teal-600"}>Launchpad</span>
               </span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.filter((n) => n.public).map((item) => (
+            <nav className={cn("hidden md:flex items-center", isDarkHeader ? "gap-6" : "gap-1")}>
+              {publicNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    location === item.href
-                      ? "bg-teal-50 text-teal-700"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    "px-3 py-2 rounded-md text-sm font-semibold transition-colors",
+                    isDarkHeader
+                      ? "text-white hover:text-cyan-200"
+                      : location === item.href
+                        ? "bg-teal-50 text-teal-700"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
                   )}
                   data-testid={`nav-link-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
                 >
@@ -81,13 +107,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-3">
               <Show when="signed-out">
                 <Link href="/sign-in">
-                  <Button variant="ghost" size="sm" data-testid="button-sign-in">
-                    Sign In
+                  <Button
+                    variant={isDarkHeader ? "outline" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      isDarkHeader &&
+                        "border-cyan-300/40 bg-transparent px-5 text-white hover:bg-white/10 hover:text-white",
+                    )}
+                    data-testid="button-sign-in"
+                  >
+                    {isDarkHeader ? "Log In" : "Sign In"}
                   </Button>
                 </Link>
                 <Link href="/sign-up">
-                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" data-testid="button-get-started">
-                    Get Started
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "text-white",
+                      isDarkHeader
+                        ? "bg-cyan-300 px-5 font-bold text-slate-950 hover:bg-cyan-200"
+                        : "bg-teal-600 hover:bg-teal-700",
+                    )}
+                    data-testid="button-get-started"
+                  >
+                    {isDarkHeader ? "Sign Up" : "Get Started"}
                   </Button>
                 </Link>
               </Show>
@@ -95,7 +138,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <UserButton />
               </Show>
               <button
-                className="md:hidden p-2 rounded-md text-slate-600 hover:bg-slate-100"
+                className={cn(
+                  "md:hidden p-2 rounded-md",
+                  isDarkHeader ? "text-white hover:bg-white/10" : "text-slate-600 hover:bg-slate-100",
+                )}
                 onClick={() => setMobileOpen(!mobileOpen)}
                 data-testid="button-mobile-menu"
               >
@@ -106,16 +152,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {mobileOpen && (
-          <div className="md:hidden border-t border-border bg-white px-4 py-3 space-y-1">
-            {navItems.filter((n) => n.public).map((item) => (
+          <div
+            className={cn(
+              "md:hidden border-t px-4 py-3 space-y-1",
+              isDarkHeader ? "border-white/10 bg-[#06131d]" : "border-border bg-white",
+            )}
+          >
+            {publicNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  location === item.href
-                    ? "bg-teal-50 text-teal-700"
-                    : "text-slate-600 hover:bg-slate-50",
+                  isDarkHeader
+                    ? "text-white hover:bg-white/10"
+                    : location === item.href
+                      ? "bg-teal-50 text-teal-700"
+                      : "text-slate-600 hover:bg-slate-50",
                 )}
                 onClick={() => setMobileOpen(false)}
               >
